@@ -230,14 +230,27 @@
             <div class="shortcut-icon">📟</div><div>CMD Pro</div>
         </div>
 
-        <div class="window" id="win-gemetube" style="top:50px; left:200px; width:460px; height:400px;">
-            <div class="window-header" onmousedown="dragStart(event, 'win-gemetube')">
-                <div class="window-title">📺 Gemetube Hub — Видеохостинг</div>
-                <div class="win-btn-group">
-                    <div class="win-btn" onclick="toggleMaximize('win-gemetube')">🔲</div>
-                    <div class="win-btn close-btn" onclick="closeWin('win-gemetube')">✕</div>
-                </div>
+        <div class="window" id="win-gemetube" style="top:50px; left:200px; width:480px; height:430px;">
+    <div class="window-header" onmousedown="dragStart(event, 'win-gemetube')">
+        <div class="window-title">📺 Gemetube Hub — Видеохостинг</div>
+        <div class="win-btn-group">
+            <div class="win-btn" onclick="toggleMaximize('win-gemetube')">🔲</div>
+            <div class="win-btn close-btn" onclick="closeWin('win-gemetube')">✕</div>
+        </div>
+    </div>
+    <div class="window-body" style="background:#111827; color:#fff; display: flex; flex-direction: column; gap: 10px;">
+        
+        <div style="background:#000; border-radius:6px; overflow:hidden; text-align:center;">
+            <video id="gemetube-player" src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls style="width:100%; max-height:200px; display:block;"></video>
+            <div id="gemetube-current-title" style="font-size:12px; padding:6px; font-weight:bold; color:var(--accent); background:#1f2937;">
+                Большой Заяц - Полный мультфильм
             </div>
+        </div>
+
+        <div id="gemetube-feed" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1; padding-right:4px;">
+            </div>
+    </div>
+</div>
             <div class="window-body" style="background:#111827; color:#fff;">
                 <div style="margin-bottom:10px; background:#1f2937; padding:10px; border-radius:6px; border: 1px solid #374151;">
                     <label style="font-size:11px; display:block; margin-bottom:5px; color:#9ca3af;">Выложить своё видео с внешнего ПК:</label>
@@ -516,10 +529,65 @@
 
         // ПЕРЕМЕННЫЕ ДЛЯ ДЕТСКОГО РЕЖИМА
         let isKidsMode = false;
-        const kidsVideos = [
-            { name: "🎈 Фиксики - Развивающие Мультики", src: "https://www.w3schools.com/html/mov_bbb.mp4" },
-            { name: "🐱 Три Кота - Сборник серий", src: "https://www.w3schools.com/html/movie.mp4" }
-        ];
+       // Настоящие мультфильмы по ~5-10 минут для обычного и детского режима
+const kidsVideos = [
+    { name: "🐱 Три Кота - Сборник Серий", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" },
+    { name: "🎈 Большой Заяц - Полный Мультфильм", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" },
+    { name: "⚙️ Фиксики - Секреты Техники", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }
+];
+
+// Функция запуска мультика в главном плеере Gemetube
+function playGemetubeVideo(src, name) {
+    const player = document.getElementById("gemetube-player");
+    const title = document.getElementById("gemetube-current-title");
+    if(player && title) {
+        player.src = src;
+        player.load();
+        player.play();
+        title.innerText = name;
+    }
+}
+
+// Переделанная функция вывода мультиков (работает и в обычном Gemetube, и в Gemekids)
+function transformToKidsContent() {
+    const browserView = document.getElementById("browser-view");
+    if(browserView) {
+        browserView.innerHTML = `
+            <div style="text-align:center; padding:10px; color:#ff477e;">
+                <h3>🌈 Безопасный детский интернет Чебурашка</h3>
+                <p>Здесь только самые полезные сайты!</p>
+                <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
+                    <button onclick="alert('Открываем детские аудиосказки...')" style="background:#ffbe53;">🎧 Слушать Сказки</button>
+                    <button onclick="alert('Загружаем раскраски...')" style="background:#7af5ff; color:#000;">🎨 Раскраски онлайн</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Заполняем ленту Gemetube настоящими мультиками
+    const feed = document.getElementById("gemetube-feed");
+    if(feed) {
+        feed.innerHTML = ""; // Чистим старый контент
+        kidsVideos.forEach(v => {
+            // Создаем красивую кнопку-карточку для каждого мультика
+            const videoCard = document.createElement("div");
+            videoCard.style = "background:#1f2937; padding:10px; border-radius:6px; border:1px solid #374151; cursor:pointer; display:flex; align-items:center; gap:10px; transition: background 0.2s;";
+            videoCard.innerHTML = `
+                <div style="font-size:24px;">🎬</div>
+                <div style="font-size:12px; font-weight:bold; color:#fff;">${v.name}</div>
+            `;
+            // При клике на карточку — мультик включается вверху окна
+            videoCard.onclick = () => playGemetubeVideo(v.src, v.name);
+            feed.appendChild(videoCard);
+        });
+    }
+
+    const expGrid = document.getElementById("explorer-grid");
+    if(expGrid) {
+        expGrid.style.display = "block";
+        generateKidsMathQuestion();
+    }
+}
         let kidsScore = 0;
 
         function saveState() {
@@ -954,7 +1022,7 @@
             }
         }, 1000);
 
-        window.onload = () => { loadState(); };
+       window.onload = () => { loadState(); transformToKidsContent(); };
     </script>
 </body>
 </html>
