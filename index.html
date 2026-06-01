@@ -41,18 +41,25 @@
             display: none; flex-direction: column; justify-content: center; align-items: center; color: #475569; text-align: center;
         }
         
-        /* ОБНОВЛЕННЫЙ ЭКРАН БЛОКИРОВКИ (ТЕПЕРЬ ГОЛУБОЙ GRADIENT) */
+        /* КРИТИЧЕСКИЙ ЭКРАН КРАША СИСТЕМЫ ПРИ 10 REBOOTS */
+        #crash-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0000aa; z-index: 1000000;
+            display: none; flex-direction: column; justify-content: center; padding: 40px; color: #fff; font-family: monospace;
+        }
+        
+        /* ОБНОВЛЕННЫЙ ЭКРАН БЛОКИРОВКИ (ГОЛУБОЙ GRADIENT) */
         #lock-screen {
             position: fixed; top:0; left:0; width:100vw; height:100vh; z-index: 99999;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             backdrop-filter: blur(30px); 
-            background: linear-gradient(135deg, #00f0ff 0%, #1e3a8a 100%); /* Голубой цвет обновы! */
+            background: linear-gradient(135deg, #00f0ff 0%, #1e3a8a 100%);
             transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .lock-card {
             background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
             padding: 30px; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
             text-align: center; width: 320px; backdrop-filter: blur(10px);
+            transition: transform 0.1s ease;
         }
         .lock-avatar { width: 70px; height: 70px; background: var(--accent); border-radius: 50%; margin: 0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow: 0 0 20px var(--accent-glow); }
 
@@ -152,9 +159,22 @@
         .game-canvas-area { background: #111827; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; border-radius: 6px; color: #fff; position: relative; }
         .browser-layout { display: flex; flex-direction: column; gap: 6px; height: 100%; }
         .browser-viewport { flex: 1; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 10px; overflow-y: auto; font-size: 12px; }
+        
+        /* СТИЛЬ ДЛЯ ТАБЛИЦЫ ДИСПЕТЧЕРА ЗАДАЧ */
+        .task-mgr-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 5px; }
+        .task-mgr-table th, .task-mgr-table td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; }
+        .task-mgr-table th { background: #f1f5f9; font-weight: bold; }
+        .task-mgr-table tr:hover { background: #f8fafc; }
     </style>
 </head>
 <body id="sys-body" onkeydown="handleGlobalKeys(event)">
+
+    <div id="crash-screen">
+        <h2>⚠️ GEMENIOS KERNEL PANIC ⚠️</h2><br>
+        <p>A fatal execution exception occurred in core process thread [0x00F5FF].</p>
+        <p>Reason: DDoS Flooding Alert! System reloaded too frequently (10 times within 2s threshold).</p><br>
+        <p>To recover system integrity and flush system registers, please refresh manually or wait for kernel cool down.</p>
+    </div>
 
     <div id="shutdown-screen">
         <h1 style="font-weight: 300; margin-bottom: 10px; color: #334155;">GemeniOS Корректно Выключена</h1>
@@ -162,12 +182,12 @@
     </div>
 
     <div id="lock-screen">
-        <div class="lock-card">
+        <div class="lock-card" id="lock-card-element">
             <div class="lock-avatar">👤</div>
             <h2 id="lock-user-title" style="color:#fff; font-size:18px; margin-bottom:15px; font-weight:400;">Admin</h2>
             <input type="password" id="lock-pass-input" placeholder="Пароль (дефолт: admin)" style="width:100%; text-align:center; margin-bottom:12px; padding:8px;">
-            <button onclick="unlockOS()" style="width:100%; background: var(--accent); color:#000;">АВТОРИЗОВАТЬСЯ</button>
-            <div id="lock-error" style="color:#ef4444; font-size:11px; margin-top:8px; display:none;">Ошибка ключа доступа!</div>
+            <button id="lock-btn" onclick="unlockOS()" style="width:100%; background: var(--accent); color:#000;">АВТОРИЗОВАТЬСЯ</button>
+            <div id="lock-error" style="color:#ef4444; font-size:11px; margin-top:8px; display:none; font-weight:bold;">Ошибка ключа доступа! Регистрация сбоя.</div>
         </div>
     </div>
 
@@ -233,6 +253,9 @@
         <div class="shortcut" id="sh-cmd" style="left:220px; top:120px;" onmousedown="shortcutDragStart(event, 'sh-cmd')" ondblclick="openWindow('win-cmd')">
             <div class="shortcut-icon">📟</div><div>CMD Pro</div>
         </div>
+        <div class="shortcut" id="sh-taskmgr" style="left:220px; top:220px;" onmousedown="shortcutDragStart(event, 'sh-taskmgr')" ondblclick="openWindow('win-taskmgr')">
+            <div class="shortcut-icon">📊</div><div style="color:#22c55e;">Диспетчер</div>
+        </div>
 
         <div class="window" id="win-gemetube" style="top:50px; left:200px; width:480px; height:430px;">
             <div class="window-header" onmousedown="dragStart(event, 'win-gemetube')">
@@ -243,16 +266,13 @@
                 </div>
             </div>
             <div class="window-body" style="padding: 10px; display: flex; flex-direction: column; gap: 10px;">
-                
                 <div style="background:#000; border-radius:6px; overflow:hidden; text-align:center;">
                     <video id="gemetube-player" src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" controls style="width:100%; max-height:200px; display:block;"></video>
                     <div id="gemetube-current-title" style="font-size:12px; padding:6px; font-weight:bold; background:rgba(0,0,0,0.05); border-top:1px solid rgba(0,0,0,0.1);">
                         🎈 Большой Заяц - Полный Мультфильм
                     </div>
                 </div>
-
-                <div id="gemetube-feed" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1;">
-                    </div>
+                <div id="gemetube-feed" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1;"></div>
             </div>
         </div>
 
@@ -438,7 +458,7 @@
 
         <div class="window" id="win-regedit" style="top:100px; left:300px; width:420px;">
             <div class="window-header" onmousedown="dragStart(event, 'win-regedit')">
-                <div class="window-title">🗲 Редактор Системного Реестра</div>
+                <div class="window-title">𗲢 Редактор Системного Реестра</div>
                 <div class="win-btn-group">
                     <div class="win-btn" onclick="toggleMaximize('win-regedit')">🔲</div>
                     <div class="win-btn close-btn" onclick="closeWin('win-regedit')">✕</div>
@@ -460,6 +480,33 @@
             <div class="window-body" id="viewer-content" style="white-space:pre-wrap; font-family:monospace; background:#f8fafc; font-size:12px; color:#111;"></div>
         </div>
 
+        <div class="window" id="win-taskmgr" style="top:100px; left:100px; width:420px; height:320px;">
+            <div class="window-header" onmousedown="dragStart(event, 'win-taskmgr')">
+                <div class="window-title">📊 Диспетчер задач GemeniOS</div>
+                <div class="win-btn-group">
+                    <div class="win-btn" onclick="toggleMaximize('win-taskmgr')">🔲</div>
+                    <div class="win-btn close-btn" onclick="closeWin('win-taskmgr')">✕</div>
+                </div>
+            </div>
+            <div class="window-body" style="padding:10px; display:flex; flex-direction:column; gap:10px;">
+                <div style="font-size:12px; font-weight:bold; color:#475569;">Активные процессы системного ядра:</div>
+                <div style="flex:1; overflow:auto; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                    <table class="task-mgr-table">
+                        <thead>
+                            <tr>
+                                <th>Имя процесса</th>
+                                <th>Память ОЗУ</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskmgr-list">
+                            </tbody>
+                    </table>
+                </div>
+                <div style="font-size:11px; color:#94a3b8; text-align:right;">Всего выделено ядерных потоков: <span id="taskmgr-threads">0</span></div>
+            </div>
+        </div>
+
         <div id="start-menu">
             <div class="start-header">
                 <div style="width:30px; height:30px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center;">👤</div>
@@ -474,6 +521,7 @@
                 <div class="start-app-item" onclick="openWindow('win-notes')">📝 Заметки / Notes</div>
                 <div class="start-app-item" onclick="openWindow('win-browser')">🌐 Браузер Quantum</div>
                 <div class="start-app-item" onclick="openWindow('win-settings')">⚙️ Системные настройки</div>
+                <div class="start-app-item" onclick="openWindow('win-taskmgr')">📊 Диспетчер Задач</div>
             </div>
             <div class="start-footer">
                 <button class="btn-power" style="background:#dc2626;" onclick="powerOffSystem()">Выключение</button>
@@ -521,11 +569,45 @@
         // НАСТОЯЩИЕ МУЛЬТФИЛЬМЫ ПО 5-10 МИНУТ
         let isKidsMode = false;
         const kidsVideos = [
-            { name: "🐱 Три Кота - Сборник Серий", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" },
-            { name: "🎈 Большой Заяц - Полный Мультфильм", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" },
-            { name: "⚙️ Фиксики - Секреты Техники", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }
+            { name: "🐱 ... Три Кота - Сборник Серий", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" },
+            { name: "🎈 ... Большой Заяц - Полный Мультфильм", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" },
+            { name: "⚙️ ... Фиксики - Секреты Техники", src: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" }
         ];
         let kidsScore = 0;
+
+        // ПУНКТ 2: СИСТЕМА ПРОВЕРКИ СПАМА КНОПКИ F5 / REBOOT (МЕНЕЕ 2 СЕКУНД)
+        (function checkSpamReboot() {
+            let lastTime = localStorage.getItem("g_last_reboot_time");
+            let count = parseInt(localStorage.getItem("g_reboot_spam_count") || "0");
+            let now = Date.now();
+
+            if (lastTime && (now - parseInt(lastTime) < 2000)) {
+                count++;
+                localStorage.setItem("g_reboot_spam_count", count);
+            } else {
+                // Если пауза между F5 больше 2 сек, сбрасываем счетчик
+                localStorage.setItem("g_reboot_spam_count", "0");
+                count = 0;
+            }
+            
+            localStorage.setItem("g_last_reboot_time", now);
+
+            if (count >= 10) {
+                // Если обновился 10 раз подряд с интервалом менее 2 сек
+                localStorage.setItem("g_reboot_spam_count", "0"); // Сброс перед показом
+                window.addEventListener('DOMContentLoaded', () => {
+                    document.getElementById("crash-screen").style.display = "flex";
+                });
+            }
+        })();
+
+        // ПУНКТ 4: СИМУЛИРОВАННАЯ ТАБЛИЦА МЕГАБАЙТ ДЛЯ ДИСПЕТЧЕРА ЗАДАЧ
+        const baseMemoryUsage = {
+            "win-explorer": 42, "win-trash": 18, "win-browser": 156,
+            "win-settings": 24, "win-cmd": 12, "win-regedit": 16,
+            "win-paint": 88, "win-ai": 210, "win-notes": 28,
+            "win-gemetube": 184, "win-game_space": 65, "win-taskmgr": 32, "win-viewer": 14
+        };
 
         function saveState() {
             localStorage.setItem("g_lang", systemLang);
@@ -682,10 +764,12 @@
         function openWindow(id) {
             document.getElementById(id).style.display = "flex";
             if(!openedWindows.has(id)) { openedWindows.add(id); renderTabs(); }
+            updateTaskManagerUI(); // Обновляем диспетчер задач
         }
         function closeWin(id) {
             document.getElementById(id).style.display = "none";
             openedWindows.delete(id); renderTabs();
+            updateTaskManagerUI(); // Обновляем диспетчер задач
         }
         function renderTabs() {
             const container = document.getElementById("taskbar-apps"); container.innerHTML = "";
@@ -693,7 +777,7 @@
                 "win-explorer": "Проводник", "win-trash": "Корзина", "win-browser": "Браузер", 
                 "win-settings": "Настройки", "win-cmd": "cmd.exe", "win-regedit": "Реестр",
                 "win-paint": "Paint", "win-ai": "Gemeni AI", "win-notes": "Заметки",
-                "win-gemetube": "Gemetube", "win-game_space": "Space Clicker"
+                "win-gemetube": "Gemetube", "win-game_space": "Space Clicker", "win-taskmgr": "Диспетчер"
             };
             openedWindows.forEach(id => {
                 const tab = document.createElement("div"); tab.className = "taskbar-tab";
@@ -706,11 +790,32 @@
             });
         }
 
-        // БЛОКИРОВКА И СИСТЕМА
+        // ПУНКТ 1: СИСТЕМА ОШИБКИ И АНИМАЦИИ ПРИ НЕПРАВИЛЬНОМ ПАРОЛЕ
         function unlockOS() {
-            if(document.getElementById("lock-pass-input").value === activePass) {
+            const inputField = document.getElementById("lock-pass-input");
+            const lockCard = document.getElementById("lock-card-element");
+            const btn = document.getElementById("lock-btn");
+
+            if(inputField.value === activePass) {
                 document.getElementById("lock-screen").style.transform = "translateY(-100vh)";
-            } else { document.getElementById("lock-error").style.display = "block"; }
+                document.getElementById("lock-error").style.display = "none";
+            } else { 
+                document.getElementById("lock-error").style.display = "block";
+                
+                // Эффект тряски окна авторизации
+                lockCard.style.transform = "translateX(10px)";
+                setTimeout(() => lockCard.style.transform = "translateX(-10px)", 50);
+                setTimeout(() => lockCard.style.transform = "translateX(10px)", 100);
+                setTimeout(() => lockCard.style.transform = "translateX(0px)", 150);
+
+                // Временная блокировка кнопки на секунду
+                btn.disabled = true;
+                btn.innerText = "БЛОКИРОВКА ЯДРА...";
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "АВТОРИЗОВАТЬСЯ";
+                }, 1000);
+            }
         }
         function lockOS() {
             document.getElementById("lock-pass-input").value = "";
@@ -737,12 +842,20 @@
             balance += 1; document.getElementById("w-money-val").innerText = balance; saveState();
         }
 
-        // SPACE CLICKER
+        // SPACE CLICKER С ПУНКТОМ 3 (СООБЩЕНИЕ О ВЫИГРЫШЕ)
         let spaceScore = 0; let satellites = 0;
         function playSpaceClicker() {
             spaceScore++; document.getElementById("space-clicks").innerText = spaceScore;
             let p = document.getElementById("space-planet");
             p.style.transform = "scale(0.85)"; setTimeout(() => p.style.transform="scale(1)", 100);
+            
+            // Проверка победы на 100 очках
+            if (spaceScore === 100) {
+                alert("🎉 ПОБЕДА В ОБЫЧНОМ РЕЖИМЕ Space Clicker! 🎉\nВы собрали 100 единиц планетарной пыли!\nЯдро системы начисляет вам бонус: +50 Gemeni Монет!");
+                balance += 50;
+                document.getElementById("w-money-val").innerText = balance;
+                saveState();
+            }
         }
         function buySpaceUpgrade() {
             if(spaceScore >= 20) {
@@ -809,7 +922,7 @@
             document.getElementById("browser-view").innerHTML = q.includes("погода") ? `Прогноз погоды в ${locationData}: +22°C.` : `Результаты по запросу "${q}": Связь с сервером стабильна.`;
         }
 
-        // ФУНКЦИЯ ЗАПУСКА КОРРЕКТНЫХ МУЛЬТИКОВ В GEMETUBE
+        // ФУНКЦИЯ ЗАПУСКА МУЛЬТИКОВ В GEMETUBE
         function playGemetubeVideo(src, name) {
             const player = document.getElementById("gemetube-player");
             const title = document.getElementById("gemetube-current-title");
@@ -825,7 +938,7 @@
         function transformToKidsContent() {
             const feed = document.getElementById("gemetube-feed");
             if(feed) {
-                feed.innerHTML = ""; // Очищаем обманки, ставим реальные мульты
+                feed.innerHTML = "";
                 kidsVideos.forEach(v => {
                     const videoCard = document.createElement("div");
                     videoCard.style = "padding:8px; border-bottom:1px solid rgba(0,0,0,0.1); cursor:pointer; display:flex; align-items:center; gap:10px;";
@@ -864,7 +977,7 @@
             document.getElementById('taskbar').style.display = 'none';
             document.getElementById('kids-bar').style.display = 'flex';
             document.body.className = 'theme-kids';
-            const toHide = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
+            const toHide = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'sh-taskmgr', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
             toHide.forEach(id => { if(document.getElementById(id)) document.getElementById(id).style.display = 'none'; });
             transformToKidsContent();
         }
@@ -876,7 +989,7 @@
                 document.getElementById('taskbar').style.display = 'flex';
                 document.getElementById('kids-bar').style.display = 'none';
                 document.body.className = 'theme-' + (localStorage.getItem("g_theme") || "dark");
-                const toShow = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
+                const toShow = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'sh-taskmgr', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
                 toShow.forEach(id => { if(document.getElementById(id)) document.getElementById(id).style.display = 'flex'; });
                 location.reload(); 
             } else { alert("Неправильный пароль! Доступ ограничен ⛔"); }
@@ -900,13 +1013,69 @@
             `;
         }
 
+        // ПУНКТ 3: ПРОВЕРКА ВЫИГРЫША В ДЕТСКОМ РЕЖИМЕ (100 БАЛЛОВ)
         function checkKidsAnswer() {
             let userAns = parseInt(document.getElementById("kids-answer").value);
             if(userAns === currentAnswer) {
                 kidsScore += 10;
-                alert("Правильно! Ты молодец! 🎉 +10 баллов");
+                
+                if (kidsScore === 100) {
+                    alert("🧸 СУПЕР-ПОБЕДА В ДЕТСКОМ РЕЖИМЕ GEMEKIDS! 🧸\nТы успешно ответил на 10 правильных вопросов и набрал 100 баллов!\nТы настоящий гений математики!");
+                } else {
+                    alert("Правильно! Ты молодец! 🎉 +10 баллов");
+                }
+                
                 generateKidsMathQuestion();
             } else { alert("Ой, почти! Попробуй посчитать ещё раз! 🎈"); }
+        }
+
+        // ПУНКТ 4: ФУНКЦИЯ ДЛЯ ДИНАМИЧЕСКОГО ОБНОВЛЕНИЯ ДИСПЕТЧЕРА ЗАДАЧ
+        function updateTaskManagerUI() {
+            const listContainer = document.getElementById("taskmgr-list");
+            const threadsContainer = document.getElementById("taskmgr-threads");
+            if (!listContainer) return;
+
+            listContainer.innerHTML = "";
+            
+            const windowNames = {
+                "win-explorer": "📂 Проводник Ядра", "win-trash": "🗑️ Корзина Системы", "win-browser": "🌐 Браузер Quantum", 
+                "win-settings": "⚙️ Системные настройки", "win-cmd": "📟 Консоль cmd.exe", "win-regedit": "𗲢 Редактор Реестра",
+                "win-paint": "🎨 Графика Paint Pro", "win-ai": "🧠 Модуль Gemeni AI", "win-notes": "📝 Заметки Блокнота",
+                "win-gemetube": "📺 Видеохостинг Gemetube", "win-game_space": "🚀 Игра Space Clicker", "win-taskmgr": "📊 Диспетчер Задач",
+                "win-viewer": "📄 Просмотрщик файлов"
+            };
+
+            let totalThreads = 0;
+            let activeMemorySum = 120; // Базовая память самого ядра ОС
+
+            openedWindows.forEach(winId => {
+                if (document.getElementById(winId) && document.getElementById(winId).style.display === "flex") {
+                    totalThreads++;
+                    let memory = baseMemoryUsage[winId] || 25;
+                    activeMemorySum += memory;
+
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td style="font-weight:600; color:#1e293b;">${windowNames[winId] || winId}</td>
+                        <td style="color:#0284c7; font-weight:bold;">${memory} МБ</td>
+                        <td><button style="background:#ef4444; padding:2px 6px; font-size:10px;" onclick="closeWin('${winId}')">Завершить</button></td>
+                    `;
+                    listContainer.appendChild(row);
+                }
+            });
+
+            if (totalThreads === 0) {
+                listContainer.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">Нет запущенных пользовательских процессов</td></tr>`;
+            }
+
+            if (threadsContainer) threadsContainer.innerText = totalThreads + " активных процессов";
+            
+            // Связываем диспетчер задач с общим виджетом ОЗУ на рабочем столе
+            let totalRamPercent = Math.min(Math.round((activeMemorySum / 1024) * 100), 99);
+            const ramVal = document.getElementById("w-ram-val");
+            const ramBar = document.getElementById("w-ram-bar");
+            if(ramVal) ramVal.innerText = totalRamPercent + "% (" + activeMemorySum + " МБ)";
+            if(ramBar) ramBar.style.width = totalRamPercent + "%";
         }
 
         // ТАЙМЕРЫ И ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ
@@ -916,12 +1085,15 @@
             if(isKidsMode) {
                 document.getElementById("kids-time").innerText = `👶 Детский режим | ⏰ Время: ${timeStr}`;
             }
+            // Раз в секунду мягко обновляем данные ОЗУ
+            if(openedWindows.size > 0) updateTaskManagerUI();
         }, 1000);
 
-        // ЗАПУСК ЯДРА
+        // ЗАПУСК ЯДРА СИСТЕМЫ
         window.onload = () => { 
             loadState(); 
-            transformToKidsContent(); // Подгружаем реальные мультики в ленту сразу
+            transformToKidsContent();
+            updateTaskManagerUI();
         };
     </script>
 </body>
