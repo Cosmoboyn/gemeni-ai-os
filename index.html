@@ -125,7 +125,30 @@
         .exp-item:hover { background: #f1f5f9; }
         .game-canvas-area { background: #111827; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; border-radius: 6px; color: #fff; position: relative; }
         .browser-layout { display: flex; flex-direction: column; gap: 6px; height: 100%; }
-        .browser-viewport { flex: 1; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 10px; overflow-y: auto; font-size: 12px; }
+        .browser-viewport { flex: 1; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 10px; overflow-y: auto; font-size: 12px; }\
+        /* КИДС РЕЖИМ: СТИЛИ */
+body.theme-kids { 
+    background: radial-gradient(circle at 50% 50%, #ff7eb9 0%, #7af5ff 100%) !important; 
+}
+body.theme-kids .window-body { 
+    background: #fffdf0; 
+    color: #ff477e; 
+}
+
+/* Детская панель вместо обычного таскбара */
+#kids-bar {
+    position: fixed; bottom: 0; left: 0; width: 100vw; height: 50px;
+    background: linear-gradient(to right, #ff7eb9, #ffbe53, #7af5ff);
+    border-top: 3px solid #fff; display: none; justify-content: space-between;
+    align-items: center; padding: 0 20px; z-index: 99999; box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+}
+.kids-btn {
+    background: #ff477e; color: white; border: 2px solid white;
+    padding: 6px 16px; font-weight: bold; border-radius: 20px;
+    cursor: pointer; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.kids-btn:hover { background: #ff1f60; transform: scale(1.05); }
+#kids-time { color: white; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body id="sys-body" onkeydown="handleGlobalKeys(event)">
@@ -472,6 +495,7 @@
             <div class="start-footer">
                 <button class="btn-power" style="background:#dc2626;" onclick="powerOffSystem()">Выключение</button>
                 <button class="btn-power" style="background:#d97706;" onclick="rebootSystem()">Перезагрузка</button>
+                <button class="btn-power" style="background:#ff477e; font-weight: bold;" onclick="enterKidsMode()">Gemekids</button>
                 <button class="btn-power" style="background:#4b5563;" onclick="lockOS()">Блокировка</button>
             </div>
         </div>
@@ -484,6 +508,11 @@
         <div id="taskbar-apps"></div>
         <div id="system-tray">GemeniOS Pro</div>
     </div>
+    <!-- Детская панель управления -->
+<div id="kids-bar">
+    <button class="kids-btn" onclick="exitKidsMode()">Выйти из Gemekids 🚪</button>
+    <div id="kids-time">👶 Детский режим | 00:00:00</div>
+</div>
 
     <script>
         // СИСТЕМНОЕ СОСТОЯНИЕ
@@ -495,6 +524,15 @@
         let locationData = "Бишкек, Кыргызстан";
         let securityLevel = "High";
         let currentFolder = "docs";
+        let isKidsMode = false;
+        const kidsVideos = [
+        let isKidsMode = false;
+        const kidsVideos = [
+        { name: "🎈 Фиксики - Развивающие Мультики", src: "https://www.w3schools.com/html/mov_bbb.mp4" },
+        { name: "🐱 Три Кота - Сборник серий", src: "https://www.w3schools.com/html/movie.mp4" }
+        ];
+        let kidsScore = 0; // Очки в детской математической игре
+            
 
         let fileSystem = {
             docs: [
@@ -786,7 +824,7 @@
         // БРАУЗЕР ПОИСК
         function searchWeb() {
             let q = document.getElementById("browser-input").value.toLowerCase().trim();
-            document.getElementById("browser-view").innerHTML = q.includes("погода") ? `Прогноз погоды в ${locationData}: +22°C.` : `Результаты по запросу "${q}": Связь с сервером стабильна.`;
+            document.getElementById("browser-view").innerHTML = q.includes("погода") ? `Прогноз погоды в ${locationData}: +100°C.` : `Результаты по запросу "${q}": Связь с сервером стабильна.`;
         }
 
         // GEMETUBE ВИДЕОЗАГРУЗКА
@@ -820,6 +858,127 @@
         });
 
         setInterval(() => { document.getElementById("w-time").innerText = new Date().toTimeString().split(" ")[0]; }, 1000);
+        // ФУНКЦИИ ДЛЯ KIDS РЕЖИМА
+function enterKidsMode() {
+    isKidsMode = true;
+    document.getElementById('start-menu').style.display = 'none';
+    
+    // Переключаем панели управления
+    document.getElementById('taskbar').style.display = 'none';
+    document.getElementById('kids-bar').style.display = 'flex';
+    
+    // Включаем детскую тему
+    document.body.className = 'theme-kids';
+    
+    // Скрываем взрослые ярлыки и виджеты
+    const toHide = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
+    toHide.forEach(id => { if(document.getElementById(id)) document.getElementById(id).style.display = 'none'; });
+    
+    // Запускаем трансформацию контента под детей
+    transformToKidsContent();
+}
+
+function exitKidsMode() {
+    let pass = prompt("Введи взрослый пароль для выхода:");
+    if (pass === "admin") {
+        isKidsMode = false;
+        
+        // Возвращаем стандартный таскбар
+        document.getElementById('taskbar').style.display = 'flex';
+        document.getElementById('kids-bar').style.display = 'none';
+        
+        // Восстанавливаем прошлую тему
+        document.body.className = 'theme-' + (localStorage.getItem("g_theme") || "dark");
+        
+        // Показываем обратно все скрытые ярлыки
+        const toShow = ['sh-settings', 'sh-cmd', 'sh-ai', 'sh-game_space', 'sh-trash', 'w-node-1', 'w-node-2', 'w-node-3', 'w-node-4', 'w-node-5'];
+        toShow.forEach(id => { if(document.getElementById(id)) document.getElementById(id).style.display = 'flex'; });
+        
+        // Перезагружаем страницу, чтобы сбросить детские изменения в приложениях
+        location.reload(); 
+    } else {
+        alert("Неправильный пароль! Доступ ограничен ⛔");
+    }
+}
+
+function transformToKidsContent() {
+    // 1. Детский Браузер
+    const browserView = document.getElementById("browser-view");
+    if(browserView) {
+        browserView.innerHTML = `
+            <div style="text-align:center; padding:10px; color:#ff477e;">
+                <h3>🌈 Безопасный детский интернет Чебурашка</h3>
+                <p>Здесь только самые полезные сайты!</p>
+                <div style="margin-top:10px; display:flex; gap:10px; justify-content:center;">
+                    <button onclick="alert('Открываем детские аудиосказки...')" style="background:#ffbe53;">🎧 Слушать Сказки</button>
+                    <button onclick="alert('Загружаем раскраски...')" style="background:#7af5ff; color:#000;">🎨 Раскраски онлайн</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    // 2. Детский Gemetube
+    const feed = document.getElementById("gemetube-feed");
+    if(feed) {
+        feed.innerHTML = ""; // Стираем взрослые ролики
+        kidsVideos.forEach(v => {
+            feed.innerHTML += `
+                <div style="background:#fff; padding:8px; border-radius:6px; border:2px solid #ff7eb9; margin-bottom:10px;">
+                    <video src="${v.src}" controls style="width:100%; border-radius:4px;"></video>
+                    <div style="font-size:12px; margin-top:5px; font-weight:bold; color:#ff477e;">${v.name}</div>
+                </div>
+            `;
+        });
+    }
+    
+    // 3. Перестраиваем Проводник в развивающую игру
+    const expGrid = document.getElementById("explorer-grid");
+    if(expGrid) {
+        expGrid.style.display = "block";
+        generateKidsMathQuestion();
+    }
+}
+
+// РАЗВИВАЮЩАЯ ИГРА: Математический тренажёр
+let currentAnswer = 0;
+function generateKidsMathQuestion() {
+    const expGrid = document.getElementById("explorer-grid");
+    if(!isKidsMode || !expGrid) return;
+    
+    let num1 = Math.floor(Math.random() * 10) + 1;
+    let num2 = Math.floor(Math.random() * 10) + 1;
+    currentAnswer = num1 + num2;
+    
+    expGrid.innerHTML = `
+        <div style="background:#fffdf0; padding:15px; border-radius:10px; border:3px dashed #ffbe53; text-align:center; color:#111; width:100%;">
+            <h3 style="color:#ff477e; margin-bottom:10px;">🧠 Развивающая игра: Математик!</h3>
+            <p style="font-size:18px; font-weight:bold; margin-bottom:10px;">Сколько будет: ${num1} + ${num2} = ?</p>
+            <input type="number" id="kids-answer" style="width:80px; text-align:center; font-size:16px; padding:4px;" placeholder="?">
+            <button onclick="checkKidsAnswer()" style="background:#ff477e; margin-left:10px;">Проверить!</button>
+            <div style="margin-top:10px; font-weight:bold; color:#059669;">⭐ Твои баллы: <span id="kids-score-val">${kidsScore}</span></div>
+        </div>
+    `;
+}
+
+function checkKidsAnswer() {
+    let userAns = parseInt(document.getElementById("kids-answer").value);
+    if(userAns === currentAnswer) {
+        kidsScore += 10;
+        alert("Правильно! Ты молодец! 🎉 +10 баллов");
+        generateKidsMathQuestion();
+    } else {
+        alert("Ой, почти! Попробуй посчитать ещё раз! 🎈");
+    }
+}
+        setInterval(() => { 
+    let timeStr = new Date().toTimeString().split(" ")[0];
+    document.getElementById("w-time").innerText = timeStr; 
+    
+    // Вот этот код из 4-го пункта:
+    if(isKidsMode) {
+        document.getElementById("kids-time").innerText = `👶 Детский режим | ⏰ Время: ${timeStr}`;
+    }
+}, 1000);
         window.onload = () => { loadState(); };
     </script>
 </body>
